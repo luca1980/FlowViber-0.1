@@ -30,6 +30,7 @@ interface AIConversationBuilderProps {
   onWorkflowUpdated?: () => void
   onSidebarRefreshNeeded?: () => void
   onWorkflowGenerated?: (workflowJson: string) => void
+  generatedWorkflowJson?: string | null
 }
 
 export default function AIConversationBuilder({
@@ -38,6 +39,7 @@ export default function AIConversationBuilder({
   onWorkflowUpdated,
   onSidebarRefreshNeeded,
   onWorkflowGenerated,
+  generatedWorkflowJson,
 }: AIConversationBuilderProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -262,6 +264,23 @@ export default function AIConversationBuilder({
       return () => clearTimeout(timer)
     }
   }, [notification.show])
+
+  useEffect(() => {
+    if (generatedWorkflowJson) {
+      console.log("[v0] Synced workflow JSON received:", generatedWorkflowJson)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          content: "🎉 Workflow JSON synced successfully!",
+          sender: "ai",
+          timestamp: new Date(),
+          provider: currentProvider,
+        },
+      ])
+      setWorkflowGenerated(true)
+    }
+  }, [generatedWorkflowJson])
 
   const handleInputChange = (value: string) => {
     setInputValue(value)

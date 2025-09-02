@@ -185,6 +185,7 @@ export default function Home() {
             onWorkflowUpdated={handleWorkflowUpdated}
             onSidebarRefreshNeeded={handleSidebarRefreshNeeded}
             onWorkflowGenerated={handleWorkflowGenerated}
+            generatedWorkflowJson={generatedWorkflowJson} // Pass generatedWorkflowJson to AI conversation builder so it can display synced changes
           />
         </div>
 

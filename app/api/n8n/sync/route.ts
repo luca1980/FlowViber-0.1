@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import n8nApi from "@/lib/n8n-api"
-import WorkflowStorage from "@/lib/workflow-storage"
 import { createClient } from "@supabase/supabase-js"
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -96,11 +95,19 @@ export async function POST(request: NextRequest) {
     // Get workflow from n8n
     const n8nWorkflow = await n8nApi.syncWorkflowFromN8n(n8nWorkflowId, userId)
 
-    // Update local workflow with synced data
-    const workflowStorage = WorkflowStorage.getInstance()
-    await workflowStorage.updateWorkflowJsonAndStatus(workflowId, n8nWorkflow, "deployed")
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-    console.log("[v0] Sync API: Workflow synced successfully")
+    await supabase
+      .from("workflows")
+      .update({
+        workflow_json: n8nWorkflow,
+        status: "deployed", // Maintain deployed status after sync
+        last_sync_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", workflowId)
+
+    console.log("[v0] Sync API: Workflow synced authoritatively from n8n response")
 
     return NextResponse.json({
       success: true,

@@ -110,7 +110,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (localWorkflow) {
-      // Update the workflow JSON and ensure status stays "deployed"
       await supabase
         .from("workflows")
         .update({
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", localWorkflow.id)
 
-      console.log("[v0] Push API: Local workflow status maintained as 'deployed'")
+      console.log("[v0] Push API: Local workflow updated authoritatively from n8n response")
     }
 
     console.log("[v0] Push API: Workflow pushed successfully")

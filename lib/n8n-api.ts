@@ -57,7 +57,6 @@ class N8nApiService {
 
         if (error) {
           console.log("[v0] N8nApi: Database error (non-fatal):", error.message)
-          // Don't throw here, try fallback options
         }
 
         if (apiKey?.encrypted_key) {
@@ -100,7 +99,9 @@ class N8nApiService {
     }
 
     console.log("[v0] N8nApi: No API key found in database or environment")
-    throw new Error("n8n API key not configured. Please add it in the Advanced Settings tab (right panel).")
+    throw new Error(
+      "n8n API key not configured. Please add your n8n API key in the Advanced Settings tab (right panel) or set the N8N_API_KEY environment variable.",
+    )
   }
 
   private async getN8nBaseUrl(userId?: string): Promise<string> {
@@ -165,7 +166,9 @@ class N8nApiService {
     }
 
     console.log("[v0] N8nApi: No base URL found in profile or environment")
-    throw new Error("n8n instance URL not configured. Please add it in the Advanced Settings tab (right panel).")
+    throw new Error(
+      "n8n instance URL not configured. Please add your n8n instance URL in the Advanced Settings tab (right panel) or set the NEXT_PUBLIC_N8N_BASE_URL environment variable.",
+    )
   }
 
   private async makeRequest<T>(endpoint: string, options: RequestInit = {}, userId?: string): Promise<T> {
@@ -184,7 +187,7 @@ class N8nApiService {
       console.log("[v0] N8nApi: Has API key:", !!apiKey)
       console.log("[v0] N8nApi: Request method:", options.method || "GET")
 
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -193,19 +196,36 @@ class N8nApiService {
         },
       })
 
+      if (!response.ok && response.status === 404 && endpoint.startsWith("/")) {
+        console.log("[v0] N8nApi: /api/v1 failed, trying /rest fallback for older n8n instance")
+        const fallbackUrl = `${cleanBaseUrl}/rest${endpoint}`
+
+        response = await fetch(fallbackUrl, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            "X-N8N-API-KEY": apiKey,
+            ...options.headers,
+          },
+        })
+
+        if (response.ok) {
+          console.log("[v0] N8nApi: /rest fallback successful")
+        }
+      }
+
       console.log("[v0] N8nApi: Response status:", response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
         console.error("[v0] N8nApi: Error response:", errorText)
 
-        // Provide more specific error messages
         if (response.status === 401) {
-          throw new Error("n8n API authentication failed. Please check your API key.")
+          throw new Error("n8n API authentication failed. Please verify your API key in the Advanced Settings tab.")
         } else if (response.status === 404) {
-          throw new Error("n8n endpoint not found. Please check your instance URL and ensure the API is enabled.")
+          throw new Error("n8n endpoint not found. Please verify your instance URL and ensure the n8n API is enabled.")
         } else if (response.status === 500) {
-          throw new Error("n8n server error. Please check your n8n instance.")
+          throw new Error("n8n server error. Please check your n8n instance status and logs.")
         } else {
           throw new Error(`n8n API error (${response.status}): ${errorText}`)
         }
@@ -218,7 +238,12 @@ class N8nApiService {
       console.error("[v0] N8nApi: Request failed:", error)
 
       // Re-throw with more context if it's our custom error
-      if (error instanceof Error && error.message.includes("not configured")) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("not configured") ||
+          error.message.includes("authentication failed") ||
+          error.message.includes("endpoint not found"))
+      ) {
         throw error
       }
 
@@ -280,8 +305,23 @@ class N8nApiService {
 
     const result = await this.makeRequest<N8nWorkflow>(`/workflows/${workflowId}`, {}, userId)
 
-    console.log("[v0] N8nApi: Workflow synced successfully:", result.name)
-    return result
+    const cleanWorkflow: N8nWorkflow = {
+      id: result.id,
+      name: result.name,
+      nodes: result.nodes || [],
+      connections: result.connections || {},
+      active: result.active,
+      settings: result.settings || { executionOrder: "v1" },
+    }
+
+    console.log("[v0] N8nApi: Workflow synced and filtered successfully:", cleanWorkflow.name)
+    console.log("[v0] N8nApi: Filtered workflow contains:", {
+      nodeCount: cleanWorkflow.nodes.length,
+      hasConnections: Object.keys(cleanWorkflow.connections).length > 0,
+      isActive: cleanWorkflow.active,
+    })
+
+    return cleanWorkflow
   }
 
   // Push workflow to n8n (update existing workflow)

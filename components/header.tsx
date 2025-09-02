@@ -264,12 +264,9 @@ export default function Header({
         duration: 5000,
       })
 
-      // Verify and maintain deployed status
-      await verifyWorkflowStatus(workflowId, "deployed")
-
-      // Trigger workflow refresh to update UI with synced data
+      // Trigger immediate workflow refresh to show synced data
       if (onWorkflowRefresh) {
-        console.log("[v0] Header: Triggering workflow refresh after sync")
+        console.log("[v0] Header: Triggering immediate workflow refresh after sync")
         onWorkflowRefresh()
       }
     } catch (error) {
@@ -324,16 +321,10 @@ export default function Header({
         description: `Workflow "${workflowName}" has been updated in n8n.`,
       })
 
-      if (workflowId) {
-        setTimeout(async () => {
-          const actualStatus = await verifyWorkflowStatus(workflowId, "deployed")
-          if (actualStatus === "deployed") {
-            console.log("[v0] Header: Status verification passed - workflow remains deployed")
-          } else {
-            console.warn("[v0] Header: Status verification failed - triggering refresh")
-            onWorkflowRefresh?.()
-          }
-        }, 1000) // Small delay to allow backend to complete
+      // Trigger immediate workflow refresh after push
+      if (onWorkflowRefresh) {
+        console.log("[v0] Header: Triggering immediate workflow refresh after push")
+        onWorkflowRefresh()
       }
     } catch (error) {
       console.error("[v0] Header: Push error:", error)

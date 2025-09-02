@@ -192,12 +192,16 @@ export class WorkflowStorage {
       console.log("[v0] WorkflowStorage: Received", workflows.length, "workflows from API")
 
       workflows.forEach((workflow: WorkflowData, index: number) => {
-        console.log(`[v0] WorkflowStorage: API Workflow ${index + 1}:`, {
+        console.log(`[v0] WorkflowStorage: Complete Workflow ${index + 1}:`, {
           id: workflow.id,
           name: workflow.name,
+          status: workflow.status,
+          n8n_workflow_id: workflow.n8n_workflow_id,
+          has_workflow_json: !!workflow.workflow_json,
+          workflow_json_nodes: workflow.workflow_json?.nodes?.length || 0,
+          deployed_at: workflow.deployed_at,
+          last_sync_at: workflow.last_sync_at,
           chat_history_length: workflow.chat_history?.length || 0,
-          chat_history_type: typeof workflow.chat_history,
-          chat_history_sample: workflow.chat_history?.slice(0, 1) || [],
         })
       })
 
